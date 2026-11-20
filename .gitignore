@@ -17,8 +17,8 @@ htmlcov/
 .env
 
 # Pipeline state & artifacts (keep the directory skeleton via .gitkeep)
-checkpoints/
-output/
+/checkpoints/
+/output/
 data/checkpoints/*
 !data/checkpoints/.gitkeep
 data/processed/*
