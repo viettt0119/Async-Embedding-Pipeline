@@ -34,6 +34,7 @@ retry:
   initial_wait_seconds: 1.0      # exponential backoff base (full jitter)
   max_wait_seconds: 60.0         # cap for a single backoff sleep
   respect_retry_after: true      # honour Retry-After headers on 429/503
+  max_consecutive_failures: 10   # circuit breaker: abort after N failed batches in a row
 
 storage:
   checkpoint_db: data/checkpoints/checkpoint.db
