@@ -1,0 +1,32 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+
+# Secrets
+.env
+
+# Pipeline state & artifacts (keep the directory skeleton via .gitkeep)
+checkpoints/
+output/
+data/checkpoints/*
+!data/checkpoints/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/raw/*
+!data/raw/.gitkeep
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store

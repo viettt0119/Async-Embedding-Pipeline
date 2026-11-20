@@ -1,0 +1,46 @@
+# Operational parameters for the async embedding pipeline.
+# Precedence: this file < environment variables (.env) < CLI flags.
+# All paths are relative to the working directory the CLI is launched from.
+
+embedding:
+  model: text-embedding-3-small
+  dimensions: null               # null = model's native size (1536 for -3-small)
+  request_timeout_seconds: 60
+
+data:
+  input_csv: data/raw/sample.csv
+  id_column: id
+  text_columns: [title, body]    # concatenated (space-separated) after cleaning
+  csv_chunksize: 10000           # rows per pandas chunk -> bounds RAM usage
+  csv_encoding: utf-8
+  min_text_chars: 3              # cleaned texts shorter than this are dropped
+
+chunking:
+  encoding: cl100k_base
+  max_tokens: 512
+  overlap_tokens: 50
+
+batching:
+  max_items: 128                 # inputs per request (API hard limit: 2048)
+  max_tokens_per_batch: 50000    # tokens per request (API hard limit: 300k)
+
+rate_limit:
+  max_concurrency: 8             # simultaneous in-flight requests (asyncio.Semaphore)
+  requests_per_minute: 3000      # client-side token bucket; null disables
+  tokens_per_minute: 1000000     # client-side token bucket; null disables
+
+retry:
+  max_attempts: 6                # total attempts per batch, including the first
+  initial_wait_seconds: 1.0      # exponential backoff base (full jitter)
+  max_wait_seconds: 60.0         # cap for a single backoff sleep
+  respect_retry_after: true      # honour Retry-After headers on 429/503
+
+storage:
+  checkpoint_db: data/checkpoints/checkpoint.db
+  dead_letter_path: data/checkpoints/dead_letter.jsonl
+  output_parquet: data/processed/embeddings.parquet
+  parquet_row_group_size: 10000
+
+runtime:
+  pending_lookup_size: 1000      # chunks checked against the checkpoint per SQL round-trip
+  queue_size_per_worker: 2       # producer look-ahead (backpressure) per worker
