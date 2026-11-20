@@ -27,13 +27,57 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 _WORDS: tuple[str, ...] = (
-    "data", "pipeline", "embedding", "vector", "token", "batch", "async", "retry",
-    "latency", "throughput", "checkpoint", "resume", "schema", "parquet", "cluster",
-    "semantic", "search", "retrieval", "model", "inference", "gradient", "storage",
-    "stream", "queue", "backoff", "jitter", "idempotent", "partition", "shard",
-    "replica", "cache", "index", "query", "context", "window", "overlap", "chunk",
-    "customer", "invoice", "shipment", "warehouse", "ticket", "support", "refund",
-    "product", "review", "rating", "quality", "delivery", "payment", "account",
+    "data",
+    "pipeline",
+    "embedding",
+    "vector",
+    "token",
+    "batch",
+    "async",
+    "retry",
+    "latency",
+    "throughput",
+    "checkpoint",
+    "resume",
+    "schema",
+    "parquet",
+    "cluster",
+    "semantic",
+    "search",
+    "retrieval",
+    "model",
+    "inference",
+    "gradient",
+    "storage",
+    "stream",
+    "queue",
+    "backoff",
+    "jitter",
+    "idempotent",
+    "partition",
+    "shard",
+    "replica",
+    "cache",
+    "index",
+    "query",
+    "context",
+    "window",
+    "overlap",
+    "chunk",
+    "customer",
+    "invoice",
+    "shipment",
+    "warehouse",
+    "ticket",
+    "support",
+    "refund",
+    "product",
+    "review",
+    "rating",
+    "quality",
+    "delivery",
+    "payment",
+    "account",
 )
 _VIETNAMESE: tuple[str, ...] = (
     "Dữ liệu được xử lý theo lô và lưu trữ an toàn.",
@@ -43,7 +87,7 @@ _VIETNAMESE: tuple[str, ...] = (
     "Mô hình nhúng chuyển văn bản thành vector ngữ nghĩa.",
 )
 _CATEGORIES: tuple[str, ...] = ("support", "sales", "logistics", "product", "finance")
-_NOISE: tuple[str, ...] = ("\x07", "\x0b", "\x1b", "​", "﻿", "\x0c", " ")
+_NOISE: tuple[str, ...] = ("\x07", "\x0b", "\x1b", "\u200b", "\ufeff", "\x0c", "\u2028")
 
 
 def _sentence(rng: random.Random, min_words: int = 6, max_words: int = 18) -> str:
@@ -90,7 +134,7 @@ def generate(
         output: Destination CSV path (parent directories are created).
         rows: Number of data rows to emit (excluding the header).
         seed: RNG seed; identical arguments always yield an identical file.
-        duplicate_rate: Probability that a row re-uses an earlier body verbatim.
+        duplicate_rate: Probability that a row re-uses an earlier title+body verbatim.
         null_rate: Probability that a row's body (and separately title) is empty.
         long_rate: Probability that a body is long enough to need several chunks.
         dirty_rate: Probability that whitespace/control-character noise is injected.
@@ -98,7 +142,7 @@ def generate(
     rng = random.Random(seed)
     output.parent.mkdir(parents=True, exist_ok=True)
     epoch = datetime(2024, 1, 1, tzinfo=UTC)
-    recent_bodies: list[str] = []
+    recent: list[tuple[str, str]] = []
     started = time.perf_counter()
 
     with output.open("w", encoding="utf-8", newline="") as handle:
@@ -106,20 +150,23 @@ def generate(
         writer.writerow(["id", "title", "body", "category", "created_at"])
         for index in range(rows):
             record_id = "" if rng.random() < 0.001 else f"doc-{index:09d}"
-            title = "" if rng.random() < null_rate else _sentence(rng, 3, 8)
 
-            if recent_bodies and rng.random() < duplicate_rate:
-                body = rng.choice(recent_bodies)
-            elif rng.random() < null_rate:
-                body = ""
+            if recent and rng.random() < duplicate_rate:
+                # Exact re-post of an earlier document under a new id.
+                title, body = rng.choice(recent)
             else:
-                sentences = rng.randint(60, 220) if rng.random() < long_rate else rng.randint(1, 8)
-                body = _paragraph(rng, sentences)
-                if rng.random() < dirty_rate:
-                    body = _dirty(rng, body)
-                recent_bodies.append(body)
-                if len(recent_bodies) > 1000:
-                    recent_bodies.pop(0)
+                title = "" if rng.random() < null_rate else _sentence(rng, 3, 8)
+                if rng.random() < null_rate:
+                    body = ""
+                else:
+                    long_body = rng.random() < long_rate
+                    sentences = rng.randint(60, 220) if long_body else rng.randint(1, 8)
+                    body = _paragraph(rng, sentences)
+                    if rng.random() < dirty_rate:
+                        body = _dirty(rng, body)
+                recent.append((title, body))
+                if len(recent) > 1000:
+                    recent.pop(0)
 
             created_at = epoch + timedelta(seconds=rng.randint(0, 3600 * 24 * 365))
             writer.writerow(
@@ -131,7 +178,9 @@ def generate(
 
     elapsed = time.perf_counter() - started
     size_mb = output.stat().st_size / 1_048_576
-    print(f"Wrote {rows:,} rows ({size_mb:,.1f} MiB) to {output} in {elapsed:.1f}s", file=sys.stderr)
+    print(
+        f"Wrote {rows:,} rows ({size_mb:,.1f} MiB) to {output} in {elapsed:.1f}s", file=sys.stderr
+    )
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
